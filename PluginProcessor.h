@@ -14,6 +14,7 @@
 //#include "MarsyasProcessor.h"
 #include "MarsyasRealtime.h"
 #include "OpenNNClassifier.h"
+#include "MarsyasPlayerNet.h"
 
 //==============================================================================
 /**
@@ -61,7 +62,7 @@ public:
 	//ScopedPointer<MarsyasProcessor> myMarsyasProcessor;
 	ScopedPointer<MarsyasRealtime> marsyasRealtime;
 	ScopedPointer<OpenNNClassifier> openNNClassifier;
-
+	ScopedPointer<MarsyasPlayerNet> marsyasPlayerNet;
 private:
     //==============================================================================
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (PluginTest1AudioProcessor)

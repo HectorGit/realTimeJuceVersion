@@ -29,6 +29,7 @@ PluginTest1AudioProcessor::PluginTest1AudioProcessor()
 	//myMarsyasProcessor = new MarsyasProcessor(1024);//changed it to 1024
 	marsyasRealtime = new MarsyasRealtime(1024);
 	openNNClassifier = new OpenNNClassifier();
+	marsyasPlayerNet = new MarsyasPlayerNet("center.wav");//pass in the soundFileName
 }
 
 PluginTest1AudioProcessor::~PluginTest1AudioProcessor()
@@ -175,9 +176,28 @@ void PluginTest1AudioProcessor::processBlock (AudioSampleBuffer& buffer, MidiBuf
 
 	if (value < 0.5) {
 		cout << "Below Threshold" << endl;
+		
 	}
 	else {
 		cout << "Above Threshold" << endl;
+		if (classificationIndex == 0) {
+			cout << "classif == 0" << endl;
+			marsyasPlayerNet->setSoundFileName("center.wav");
+			marsyasPlayerNet->playSound();
+		}
+		else if (classificationIndex == 1) {
+			cout << "classif == 1" << endl;
+			marsyasPlayerNet->setSoundFileName("halfedge.wav");
+			marsyasPlayerNet->playSound();
+		}
+		else if (classificationIndex == 2) {
+			cout << "classif == 2" << endl;
+			marsyasPlayerNet->setSoundFileName("rimshot.wav");
+			marsyasPlayerNet->playSound();
+		}
+		else {
+			//nothing
+		}
 	}
 	if (openNNClassifier->debug) { cout << "------------------------------------------" << endl; }
 
