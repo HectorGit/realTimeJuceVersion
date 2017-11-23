@@ -14,7 +14,7 @@ MarsyasRealtime::MarsyasRealtime(int bufferSize) : readPos(0)
 	inputBuffer = new AudioBuffer<float>(1,bufferSize);//init with 
 	inputBuffer->clear();
 
-	sropt = 48000.0;//changed this
+	sropt = 41000.0;//changed this
 	copt = 1;
 	bufferSize = 1024; //vs 512 //ALWAYS DO 1024 BC THATS HOW I EXTRACTED FEATURES.
 

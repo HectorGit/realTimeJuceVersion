@@ -30,6 +30,15 @@ PluginTest1AudioProcessor::PluginTest1AudioProcessor()
 	marsyasRealtime = new MarsyasRealtime(1024);
 	openNNClassifier = new OpenNNClassifier();
 	marsyasPlayerNet = new MarsyasPlayerNet("center.wav");//pass in the soundFileName
+	rolling_average_increase = 0.0;
+	rolling_average_decrease = 0.0;
+	current_rms = 0.0;
+	previous_rms = 0.0;
+	alpha_incr = 0.75;
+	alpha_decr = 0.25;
+	not_processing = true;
+	processing = false;
+	iteration = 0;
 }
 
 PluginTest1AudioProcessor::~PluginTest1AudioProcessor()
@@ -153,54 +162,84 @@ void PluginTest1AudioProcessor::processBlock (AudioSampleBuffer& buffer, MidiBuf
     for (int i = totalNumInputChannels; i < totalNumOutputChannels; ++i)
         buffer.clear (i, 0, buffer.getNumSamples());
 
-	//cout << "Size in samples of the buffer: " << buffer.getNumSamples() << endl;
-	
-	cout << "running detection " << endl;
-	marsyasRealtime->runDetection2(buffer.getReadPointer(0), buffer.getNumSamples()); //this gets 
-																					 //the samples from juce
-																					 //the classification
-																				     //uses the output form
-	cout << "\n (procBloc) first sample from the buffer: " << buffer.getReadPointer(0)[0] << endl;
-																					 //apply analysis
-	
-	cout << "applying analysis " << endl;
+	cout << "iteration : " << iteration << endl;
+	iteration++;
 
-	mrs_realvec processedData = marsyasRealtime->applyAnalysis();
-	
-	cout << "\n (processBlock) processedData: " << processedData << endl;
+	current_rms = buffer.getRMSLevel(0, 0, buffer.getNumSamples());
+	previous_rms = buffer.getRMSLevel(0, 0, buffer.getNumSamples()); //necessary?
 
-	OpenNN::Vector<double> toClassify = openNNClassifier->convert(processedData);
-	OpenNN::Vector<double> outputs = openNNClassifier->obtainOutputs(toClassify);
-	size_t classificationIndex = openNNClassifier->obtainClassification(outputs);
-	double value = outputs.at(classificationIndex);
+	if (processing) {
+		cout << "processing !" << endl;
+		rolling_average_decrease = alpha_decr*(rolling_average_decrease)+(1 - alpha_decr)*(current_rms);
 
-	if (value < 0.5) {
-		cout << "Below Threshold" << endl;
-		
+		if (current_rms < rolling_average_decrease) {
+			processing = false;
+			not_processing = true; // unnecessary
+			rolling_average_decrease = 0.0;
+		}
+		else { // how do we break out of here?
+
+			cout << "running detection " << endl;
+			marsyasRealtime->runDetection2(buffer.getReadPointer(0), buffer.getNumSamples()); //this gets 
+																							  //the samples from juce
+																							  //uses the output form
+			cout << "\n (procBloc) first sample from the buffer: " << buffer.getReadPointer(0)[0] << endl;
+			//apply analysis
+
+			cout << "applying analysis " << endl;
+
+			mrs_realvec processedData = marsyasRealtime->applyAnalysis();
+
+			cout << "\n (processBlock) processedData: " << processedData << endl;
+
+			OpenNN::Vector<double> toClassify = openNNClassifier->convert(processedData);
+			OpenNN::Vector<double> outputs = openNNClassifier->obtainOutputs(toClassify);
+			size_t classificationIndex = openNNClassifier->obtainClassification(outputs);
+			double value = outputs.at(classificationIndex);
+
+			if (value < 1.7) { //changed this based on the results - can try to find another reason why this
+							   //is weird.
+				cout << "Below Threshold" << endl;
+
+			}
+			else {
+				cout << "Above Threshold" << endl;
+				if (classificationIndex == 0) {
+					cout << "classif == 0" << endl;
+					marsyasPlayerNet->setSoundFileName("center.wav");
+					marsyasPlayerNet->playSound();
+				}
+				else if (classificationIndex == 1) {
+					cout << "classif == 1" << endl;
+					marsyasPlayerNet->setSoundFileName("halfedge.wav");
+					marsyasPlayerNet->playSound();
+				}
+				else if (classificationIndex == 2) {
+					cout << "classif == 2" << endl;
+					marsyasPlayerNet->setSoundFileName("rimshot.wav");
+					marsyasPlayerNet->playSound();
+				}
+				else {
+					//nothing
+				}
+			}
+			if (openNNClassifier->debug) { cout << "------------------------------------------" << endl; }
+
+		}
 	}
-	else {
-		cout << "Above Threshold" << endl;
-		if (classificationIndex == 0) {
-			cout << "classif == 0" << endl;
-			marsyasPlayerNet->setSoundFileName("center.wav");
-			marsyasPlayerNet->playSound();
-		}
-		else if (classificationIndex == 1) {
-			cout << "classif == 1" << endl;
-			marsyasPlayerNet->setSoundFileName("halfedge.wav");
-			marsyasPlayerNet->playSound();
-		}
-		else if (classificationIndex == 2) {
-			cout << "classif == 2" << endl;
-			marsyasPlayerNet->setSoundFileName("rimshot.wav");
-			marsyasPlayerNet->playSound();
-		}
-		else {
-			//nothing
+	else { //not processing
+		cout << "not processing !" << endl;
+		rolling_average_increase = alpha_incr*(rolling_average_increase)+(1 - alpha_incr)*(current_rms);
+
+		if (current_rms > rolling_average_increase) {
+			processing = true;
+			not_processing = false; //unnecessary
+			rolling_average_increase = 0.0; //reset - should it be this harsh?
 		}
 	}
-	if (openNNClassifier->debug) { cout << "------------------------------------------" << endl; }
 
+
+	
 }
 
 //==============================================================================
@@ -234,3 +273,54 @@ AudioProcessor* JUCE_CALLTYPE createPluginFilter()
 {
     return new PluginTest1AudioProcessor();
 }
+
+
+//cout << "Size in samples of the buffer: " << buffer.getNumSamples() << endl;
+
+/*cout << "running detection " << endl;
+marsyasRealtime->runDetection2(buffer.getReadPointer(0), buffer.getNumSamples()); //this gets
+//the samples from juce
+//the classification
+//uses the output form
+cout << "\n (procBloc) first sample from the buffer: " << buffer.getReadPointer(0)[0] << endl;
+//apply analysis
+
+cout << "applying analysis " << endl;
+
+mrs_realvec processedData = marsyasRealtime->applyAnalysis();
+
+cout << "\n (processBlock) processedData: " << processedData << endl;
+
+OpenNN::Vector<double> toClassify = openNNClassifier->convert(processedData);
+OpenNN::Vector<double> outputs = openNNClassifier->obtainOutputs(toClassify);
+size_t classificationIndex = openNNClassifier->obtainClassification(outputs);
+double value = outputs.at(classificationIndex);
+
+if (value < 1.7) { //changed this based on the results - can try to find another reason why this
+//is weird.
+cout << "Below Threshold" << endl;
+
+}
+else {
+cout << "Above Threshold" << endl;
+if (classificationIndex == 0) {
+cout << "classif == 0" << endl;
+marsyasPlayerNet->setSoundFileName("center.wav");
+marsyasPlayerNet->playSound();
+}
+else if (classificationIndex == 1) {
+cout << "classif == 1" << endl;
+marsyasPlayerNet->setSoundFileName("halfedge.wav");
+marsyasPlayerNet->playSound();
+}
+else if (classificationIndex == 2) {
+cout << "classif == 2" << endl;
+marsyasPlayerNet->setSoundFileName("rimshot.wav");
+marsyasPlayerNet->playSound();
+}
+else {
+//nothing
+}
+}
+if (openNNClassifier->debug) { cout << "------------------------------------------" << endl; }
+*/

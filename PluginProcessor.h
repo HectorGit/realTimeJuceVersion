@@ -63,6 +63,15 @@ public:
 	ScopedPointer<MarsyasRealtime> marsyasRealtime;
 	ScopedPointer<OpenNNClassifier> openNNClassifier;
 	ScopedPointer<MarsyasPlayerNet> marsyasPlayerNet;
+	float rolling_average_increase;
+	float rolling_average_decrease;
+	float current_rms;
+	float previous_rms;
+	float alpha_incr;
+	float alpha_decr;
+	bool not_processing;
+	bool processing;
+	int iteration;
 private:
     //==============================================================================
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (PluginTest1AudioProcessor)
