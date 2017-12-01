@@ -69,9 +69,14 @@ public:
 	float previous_rms;
 	float alpha_incr;
 	float alpha_decr;
+	int rolling_classification;
+	//OpenNN::Vector<double> myVec;
+	//std::vector<int> vector[3];
+	OpenNN::Vector<int>* classificationCounters;
 	bool not_processing;
 	bool processing;
 	int iteration;
+
 private:
     //==============================================================================
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (PluginTest1AudioProcessor)
