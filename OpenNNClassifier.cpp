@@ -54,6 +54,9 @@ OpenNNClassifier::OpenNNClassifier() {
 OpenNNClassifier::~OpenNNClassifier() {
 	//delete 
 	//i don't know what or how to free it.
+	//delete myDoc;
+	delete neural_network_Pointer;
+	
 }
 
 Vector<double> OpenNNClassifier::obtainOutputs(Vector<double> vector_input) {

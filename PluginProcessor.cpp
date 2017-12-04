@@ -34,8 +34,8 @@ PluginTest1AudioProcessor::PluginTest1AudioProcessor()
 	rolling_average_decrease = 0.0;
 	current_rms = 0.0;
 	previous_rms = 0.0;
-	alpha_incr = 0.75;
-	alpha_decr = 0.25;
+	alpha_incr = 0.90;
+	alpha_decr = 0.10;
 	not_processing = true;
 	processing = false;
 	rolling_classification = -1; // do this so it doesn't play anything back initially.
@@ -46,6 +46,10 @@ PluginTest1AudioProcessor::PluginTest1AudioProcessor()
 
 PluginTest1AudioProcessor::~PluginTest1AudioProcessor()
 {
+	delete marsyasRealtime;
+	delete openNNClassifier;
+	delete marsyasPlayerNet;
+	delete classificationCounters;
 }
 
 //==============================================================================
@@ -172,7 +176,8 @@ void PluginTest1AudioProcessor::processBlock (AudioSampleBuffer& buffer, MidiBuf
 
 	if (processing) {
 		cout << "processing !" << endl;
-		rolling_average_decrease = alpha_decr*(rolling_average_decrease)+(1 - alpha_decr)*(current_rms);
+		rolling_average_decrease = alpha_decr*(rolling_average_decrease)+(1 - alpha_decr)*(current_rms); //\
+		cout << "rolling_average_decrease (within processing) :" << rolling_average_decrease << endl;
 		//MOVING THIS TO THE TIME WHEN THE STATE IS EXITED.
 		//rolling_classification = classificationCounters->calculate_maximal_index(); //didn't give problem
 																					//cool
@@ -185,8 +190,11 @@ void PluginTest1AudioProcessor::processBlock (AudioSampleBuffer& buffer, MidiBuf
 		//cout << "calculating maximal index == rolling classification " << rolling_classification << endl;
 
 
-		if (current_rms < rolling_average_decrease && current_rms < 0.1) {
+		if (current_rms < rolling_average_decrease && current_rms < 0.1) { //MAYBE CHANGE THIS THRESHOLD
 			//ONLY CALCULATE MAX AFTER SOME PROCESSING HAS HAPPENED
+
+			cout << "exited the 'processing' state with RMS = " << current_rms << endl;
+
 			rolling_classification = classificationCounters->calculate_maximal_index();
 			cout << "these are the counters at exit of processing state : \n" << classificationCounters->to_string() << endl;
 			cout << "calculating maximal index == rolling classification at exit of processing state : \n " << rolling_classification << endl;
@@ -214,13 +222,15 @@ void PluginTest1AudioProcessor::processBlock (AudioSampleBuffer& buffer, MidiBuf
 			rolling_classification = -1;
 			processing = false;
 			not_processing = true;
-			rolling_average_decrease = 0.0;
+			rolling_average_decrease = 0.0;//rolling_average_decrease-(1 - alpha_decr)*(current_rms);//0.0; //keeping it
 
 		}
 		else {
 			//accumulate a value for the classification...
 			//add to a counter of that type of classification [i,j,k] and then
 			//once the
+
+			//means its not exiting the processing SO 
 
 			cout << "running detection " << endl;
 			marsyasRealtime->runDetection2(buffer.getReadPointer(0), buffer.getNumSamples()); //this gets
@@ -240,10 +250,10 @@ void PluginTest1AudioProcessor::processBlock (AudioSampleBuffer& buffer, MidiBuf
 			size_t classificationIndex = openNNClassifier->obtainClassification(outputs);
 			double value = outputs.at(classificationIndex);
 
-			if (value < 1.7) { //changed this based on the results - can try to find another reason why this
+			if (value < 1.0) { //changed this based on the results - can try to find another reason why this
 							   //is weird.
 				cout << "Below Threshold" << endl;
-
+				cout << "counters not updated" << endl;
 			}
 			else {
 				cout << "Above Threshold" << endl;
@@ -269,6 +279,7 @@ void PluginTest1AudioProcessor::processBlock (AudioSampleBuffer& buffer, MidiBuf
 				}
 				else {
 					//nothing
+					cout << "shouldn't go here - somehow did" << endl;
 				}
 			}
 			if (openNNClassifier->debug) { cout << "------------------------------------------" << endl; }
@@ -278,11 +289,13 @@ void PluginTest1AudioProcessor::processBlock (AudioSampleBuffer& buffer, MidiBuf
 	else { //not processing
 		cout << "not processing !" << endl;
 		rolling_average_increase = alpha_incr*(rolling_average_increase)+(1 - alpha_incr)*(current_rms);
+		cout << "rolling_avg_increase (within not processing): " << rolling_average_increase << endl;
 
 		if (current_rms > rolling_average_increase && current_rms >0.1) {
+			cout << "exited the 'not processing' state with RMS = " << current_rms << endl;
 			processing = true;
 			not_processing = false; //unnecessary
-			rolling_average_increase = 0.0; //reset - should it be this harsh?
+			rolling_average_increase = 0.0;//rolling_average_increase - (1 - alpha_incr)*current_rms;//0.0; //keeping it!
 		}
 	}
 	

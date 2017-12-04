@@ -31,12 +31,18 @@ MarsyasRealtime::MarsyasRealtime(int bufferSize) : readPos(0)
 	inSamples = net->getctrl("mrs_natural/inSamples")->to<mrs_natural>();
 	cout << "net inSamples = " << inSamples << endl;
 
+	/*NEW*/
+	MarSystem* spectimeFanout = mng.create("Fanout", "spectimeFanout");
+	spectimeFanout->addMarSystem(mng.create("ZeroCrossings", "zcrs")); //1
+	spectimeFanout->addMarSystem(mng.create("Rms", "rms"));            //2
+	/*NEW*/																   /*NEW*/
+
 	MarSystem* spectrumOperation = mng.create("Series", "spectrumOperation");
 	spectrumOperation->addMarSystem(mng.create("Windowing", "ham"));
 	spectrumOperation->addMarSystem(mng.create("Spectrum", "spec"));
 	spectrumOperation->addMarSystem(mng.create("PowerSpectrum", "pspk"));
 
-	net->addMarSystem(spectrumOperation);
+	//net->addMarSystem(spectrumOperation);
 
 	MarSystem* featureFanout = mng.create("Fanout", "featureFanout");
 	featureFanout->addMarSystem(mng.create("Centroid", "centroid"));
@@ -44,8 +50,16 @@ MarsyasRealtime::MarsyasRealtime(int bufferSize) : readPos(0)
 	featureFanout->addMarSystem(mng.create("MFCC", "mfcc"));
 	featureFanout->addMarSystem(mng.create("Kurtosis", "kurtosis"));
 	featureFanout->addMarSystem(mng.create("Skewness", "skewness"));
+	/*NEW*/
+	featureFanout->addMarSystem(mng.create("SFM", "sfm"));
+	featureFanout->addMarSystem(mng.create("SCF", "scf"));
+	/*NEW*/
 
-	net->addMarSystem(featureFanout);
+	spectrumOperation->addMarSystem(featureFanout);      // theExtractorNet contains(spectTimeFanout which contains ((theSpectralNet which contains featureFanout)))
+	spectimeFanout->addMarSystem(spectrumOperation);
+	net->addMarSystem(spectimeFanout);
+
+	//net->addMarSystem(featureFanout);
 	// FOR SOME REASON SETTING UP THIS - might be unnecessary
 
 	//MarSystem* acc = mng.create("Accumulator", "acc");
